@@ -1,0 +1,15 @@
+{
+  "name": "node-exif-orient",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "pacho",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^0.9.0",
+    "gm": "^1.17.0"
+  }
+}
