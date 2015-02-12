@@ -4,7 +4,7 @@ var AWS = require('aws-sdk');
 var gm = require('gm')
             .subClass({ imageMagick: true }); // Enable ImageMagick integration.
 var util = require('util');
-
+var _ = require('underscore');
 
 // get reference to S3 client
 var s3 = new AWS.S3();
@@ -14,15 +14,9 @@ exports.handler = function(event, context) {
 	console.log("Reading options from event:\n", util.inspect(event, {depth: 5}));
 	var srcBucket = event.Records[0].s3.bucket.name;
 	var srcKey    = event.Records[0].s3.object.key;
-	// var dstBucket = srcBucket + "resized";
-	var dstBucket = "viu-photo-final";
-	var dstKey    = srcKey;
-
-	// Sanity check: validate that source and destination are different buckets.
-	if (srcBucket == dstBucket) {
-		console.error("Destination bucket must not match source bucket.");
-		return;
-	}
+	// var srcBucket = srcBucket + "resized";
+	// var srcBucket = "viu-photo-final";
+	// var srcKey    = srcKey;
 
 	// Infer the image type.
 	var typeMatch = srcKey.match(/\.([^.]*)$/);
@@ -47,9 +41,15 @@ exports.handler = function(event, context) {
 				next);
 			},
 		function tranform(response, next) {
-			gm(response.Body).size(function(err, size) {
-				// Transform the image buffer in memory.
-				this.autoOrient()//(width, height)
+			gm(response.Body).orientation(function(err, value) {
+                if (value==='Undefined') {
+                    console.log("image hasn't any exif orientation data");
+                    context.done();
+                    return;
+                } else {
+                    console.log("auto orienting image with exif data", value);
+				    // Transform the image buffer in memory.
+				    this.autoOrient()//(width, height)
 					.toBuffer(imageType, function(err, buffer) {
 						if (err) {
 							next(err);
@@ -57,15 +57,17 @@ exports.handler = function(event, context) {
 							next(null, response.ContentType, buffer);
 						}
 					});
+                }
 			});
 		},
 		function upload(contentType, data, next) {
 			// Stream the transformed image to a different S3 bucket.
 			s3.putObject({
-					Bucket: dstBucket,
-					Key: dstKey,
+					Bucket: srcBucket,
+					Key: srcKey,
 					Body: data,
-					ContentType: contentType
+					ContentType: contentType,
+                    ACL: 'public-read'
 				},
 				next);
 			}
@@ -73,13 +75,13 @@ exports.handler = function(event, context) {
 			if (err) {
 				console.error(
 					'Unable to resize ' + srcBucket + '/' + srcKey +
-					' and upload to ' + dstBucket + '/' + dstKey +
+					' and upload to ' + srcBucket + '/' + srcKey +
 					' due to an error: ' + err
 				);
 			} else {
 				console.log(
 					'Successfully resized ' + srcBucket + '/' + srcKey +
-					' and uploaded to ' + dstBucket + '/' + dstKey
+					' and uploaded to ' + srcBucket + '/' + srcKey
 				);
 			}
 

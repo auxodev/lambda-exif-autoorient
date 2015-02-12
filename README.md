@@ -1,10 +1,61 @@
 #How to use this code
 
 1. Go to the AWS Lambda Console and create a new lambda function.
-2. You'll need to setup two S3 buckets, one is the source that will trigger the lambda function and the other one is the destiny bucket where the auto-oriented photos will be stored.
-3. You'll also need to setup two IAM Roles one for the bucket to be able to call the lambda function, and one for the lambda function to be able to read and write to the S3 buckets.
+2. You'll need to setup one S3 buckets, one is the source that will trigger the lambda function and the other one is the destiny bucket where the auto-oriented photos will be stored.
+3. You'll also need to setup two IAM Roles one for the bucket to be able to call the lambda function, and one for the lambda function to be able to read, write and modify the permissions of the objects in the S3 buckets.
 
-For a more detailed explanation check the AWS Lambda Walkthrough # 2 in which this handler is extraheavily based.
+This is the IAM policy used in the lambda function:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:*"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+ "s3:DeleteObject",
+"s3:PutObjectAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::*"
+      ]
+    }
+  ]
+}
+```
+
+This is the IAM used to invoke the lambda function:
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Action": [
+        "lambda:InvokeFunction"
+      ]
+    }
+  ]
+}
+
+```
+In the AWS S3 Console in the bucket property list you must configure the event dispatch from the bucket.
+
+In the events field select `ObjectCreated(All)`
+Send to Lambda function
+You can check the Lambda ARN in the lambda section of the console, and the IAM role to invoke it in the IAM section of the console.
 
 ##Using the aws cli:
 
@@ -26,7 +77,4 @@ Then to upload the code:
 		   --timeout 60 \
 		   --memory-size 1024
 
-Norice that:
-
-__ViuAutoOrient__ is the name of the lambda function.
-__lambda_exec_role_viu_autoorient__ is the name of the IAM Role with permissions to read and write from S3.
+Take into account that this code mutates the original object and stores the corrected version under the exact same bucket and key.
